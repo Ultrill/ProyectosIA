@@ -1,4 +1,3 @@
-# k_nearest_neighbor.py
 
 from sklearn.neighbors import KNeighborsClassifier
 import pickle
