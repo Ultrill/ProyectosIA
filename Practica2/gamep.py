@@ -5,14 +5,20 @@ import os
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 from joblib import dump, load
 import shutil
 
+
 # Inicializar Pygame
 pygame.init()
+
+#musica chida
+pygame.mixer.music.load(r"C:\Users\ulise\OneDrive\Escritorio\IA\Practica2\assets\audio\FAUN.mp3")
+pygame.mixer.music.play(loops=-1, start=0.0)  # Reproduce la música en loop (-1) desde el inicio (start=0)
 
 # Dimensiones de la pantalla
 w, h = 800, 400
@@ -38,7 +44,7 @@ modelo_red_neuronal = None
 modelo_knn = None
 modelo_actual = None
 scaler = None
-modo_auto = False  # Añadir esta línea
+modo_auto = False  
 
 
 # Variables de salto
@@ -53,12 +59,12 @@ fuente = pygame.font.SysFont('Arial', 24)
 menu_activo = True
 modo_auto = False
 
-
+#Variabkles de movimiento
 movimiento_horizontal = False
 direccion_movimiento = None
 contador_movimiento = 0
 posicion_central = 30
-velocidad_retorno = 2.5
+velocidad_retorno = 1.5
 
 
 # Datos para modelos y CSV
@@ -122,7 +128,7 @@ def limpiar_datos_modelo():
     if os.path.exists(ruta_modelos):
         shutil.rmtree(ruta_modelos)
 
-    print("Modelos y dataset eliminados. Obteniendo nuevos datos...")
+    print("Datos eliminados. Obteniendo nuevos datos...")
 
 # Función para cargar y preparar los datos del CSV
 def cargar_datos_entrenamiento():
@@ -135,7 +141,7 @@ def cargar_datos_entrenamiento():
     
     with open(ruta_csv, mode='r') as archivo:
         lector = csv.reader(archivo, delimiter=';')
-        next(lector)  # Saltar la cabecera
+        next(lector)  
         for fila in lector:
             if len(fila) < 8:
                 continue
@@ -154,12 +160,12 @@ def cargar_datos_entrenamiento():
             distancia_bala2 = abs(jugador_x - bala2_x)
             altura_bala2 = bala2_y
             
-            # Calcular velocidad aproximada de la bala1 (asumiendo que es constante)
-            velocidad_bala1 = -5  # Valor aproximado basado en el código
+            # Calcular velocidad aproximada de la bala1 
+            velocidad_bala1 = -5  
             
             X.append([distancia_bala1, distancia_bala2, altura_bala2, velocidad_bala1, jugador_x])
             
-            # Etiqueta: qué acción tomar (0: quieto, 1: izquierda, 2: derecha, 3: saltar)
+            # 0: quieto, 1: izquierda, 2: derecha, 3: saltar
             if salto == 1:
                 y.append(3)
             elif movimiento == "izquierda":
@@ -181,7 +187,7 @@ def cargar_datos_entrenamiento():
     
     return X, y
 
-# Función para entrenar los modelos
+# Entrenamiento de los modelos
 def entrenar_modelos():
     global modelo_decision_tree, modelo_red_neuronal, modelo_knn
     
@@ -193,20 +199,29 @@ def entrenar_modelos():
     # Dividir datos en entrenamiento y prueba
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
+    # Normalizar los datos
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
     # Entrenar Decision Tree
     modelo_decision_tree = DecisionTreeClassifier(max_depth=7)
-    modelo_decision_tree.fit(X_train, y_train)
-    print(f"Decision Tree - Precisión: {modelo_decision_tree.score(X_test, y_test):.2f}")
+    modelo_decision_tree.fit(X_train_scaled, y_train)
+    print(f"Decision Tree : {modelo_decision_tree.score(X_test_scaled, y_test):.2f}")
     
     # Entrenar Red Neuronal
     modelo_red_neuronal = MLPClassifier(hidden_layer_sizes=(60, 60), max_iter=10000)
-    modelo_red_neuronal.fit(X_train, y_train)
-    print(f"Red Neuronal - Precisión: {modelo_red_neuronal.score(X_test, y_test):.2f}")
+    modelo_red_neuronal.fit(X_train_scaled, y_train)
+    print(f"Red Neuronal : {modelo_red_neuronal.score(X_test_scaled, y_test):.2f}")
     
-    # Entrenar KNN
-    modelo_knn = KNeighborsClassifier(n_neighbors=3)
-    modelo_knn.fit(X_train, y_train)
-    print(f"KNN - Precisión: {modelo_knn.score(X_test, y_test):.2f}")
+    # Entrenar KNN con ajuste automático de k usando GridSearchCV
+    modelo_knn = KNeighborsClassifier()
+    modelo_knn.fit(X_train_scaled, y_train)
+    print(f"KNN : {modelo_knn.score(X_test_scaled, y_test):.2f}")
+    
+    # Mostrar métricas detalladas con classification_report
+    y_pred_knn = modelo_knn.predict(X_test_scaled)
+    print("Reporte de clasificación para KNN:\n", classification_report(y_test, y_pred_knn))
     
     return True
 
@@ -229,7 +244,6 @@ def decidir_accion(modelo):
     # Predecir acción: 0=quieto, 1=izquierda, 2=derecha, 3=saltar
     accion = modelo.predict(caracteristicas)[0]
 
-    # Aquí ya no filtramos la acción, dejamos que sea cualquiera de las 4
     return accion
 
 def mover_derecha_con_retorno():
@@ -243,14 +257,14 @@ def mover_derecha_con_retorno():
         direccion_movimiento = "derecha"
         contador_movimiento = 0
 
-# Disparo nave 1
+# Disparo cañon 1
 def disparar_bala():
     global bala_disparada, velocidad_bala
     if not bala_disparada:
-        velocidad_bala = -3
+        velocidad_bala = -9
         bala_disparada = True
 
-# Disparo nave 2
+# Disparo cañon 2
 def disparar_bala2():
     global bala2_disparada, velocidad_bala2_x, velocidad_bala2_y, bala2
     if not bala2_disparada:
@@ -349,7 +363,7 @@ def guardar_datos():
         ])
 
 
-# Actualizar juego
+
 def update():
     global bala, velocidad_bala, current_frame, frame_count, fondo_x1, fondo_x2
     global bala2, velocidad_bala2_x, velocidad_bala2_y
@@ -389,7 +403,7 @@ def update():
         print("¡Colisión detectada!")
         reiniciar_juego()
 
-    # Movimiento horizontal temporal con retorno suave
+    # Movimiento horizontal temporal 
     if movimiento_horizontal:
         contador_movimiento += 1
         if contador_movimiento >= 10:
@@ -540,7 +554,7 @@ def main():
                 if evento.key == pygame.K_a:
                     mostrar_menu_automatico()
 
-                # Movimiento manual por tecla puntual (ya no se usa si estás manteniendo teclas)
+                # Movimiento manual
                 if not modo_auto and not movimiento_horizontal:
                     if tecla == pygame.K_a:
                         jugador.x = 10
@@ -580,7 +594,7 @@ def main():
                     ultimo_movimiento = "quieto"
 
         else:
-            # Modo manual continuo (mantener tecla presionada)
+            # Modo manual continuo 
             teclas = pygame.key.get_pressed()
             if teclas[pygame.K_a] and jugador.x > 50:
                 jugador.x -= 15
@@ -602,7 +616,7 @@ def main():
                 disparar_bala2()
             update()
 
-            # DIBUJAR MARCAS DESPUÉS DEL UPDATE
+            # Dubujar marcas
             if bala.x == 372 and bala.y == 310:
                 pygame.draw.circle(pantalla, (255, 0, 0), (bala.x, bala.y), 5)
             if bala2.y == 200:
